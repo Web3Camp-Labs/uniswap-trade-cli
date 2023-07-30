@@ -29,24 +29,15 @@ export function getWalletAddress(): string | null {
   return wallet.address
 }
 
-export async function sendTransaction(
-  transaction: ethers.TransactionRequest
-): Promise<TransactionState> {
-  if (transaction.value) {
-    transaction.value = (transaction.value)
-  }
-  return sendTransactionViaWallet(transaction)
-}
-
 // Internal Functionality
 
-function createWallet(): ethers.Wallet {
+export function createWallet(): ethers.Wallet {
   let provider = mainnetProvider
   return new ethers.Wallet(CurrentConfig.wallet.privateKey, provider)
 }
 
 
-async function sendTransactionViaWallet(
+export async function sendTransaction(wallet: ethers.Wallet,
   transaction: ethers.TransactionRequest
 ): Promise<TransactionState> {
   if (transaction.value) {
@@ -55,7 +46,7 @@ async function sendTransactionViaWallet(
   const txRes = await wallet.sendTransaction(transaction)
 
   let receipt = null
-  const provider = getProvider()
+  const provider = wallet.provider;
   if (!provider) {
     return TransactionState.Failed
   }
