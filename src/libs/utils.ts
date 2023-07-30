@@ -24,16 +24,16 @@ export function toReadableAmount(rawAmount: number, decimals: number): string {
 }
 
 export function displayTrade(trade: Trade<Token, Token, TradeType>): string {
-  return `${trade.inputAmount.toExact()} ${
-    trade.inputAmount.currency.symbol
-  } for ${trade.outputAmount.toExact()} ${trade.outputAmount.currency.symbol}`
+  return `${trade.inputAmount.toExact()} ${trade.inputAmount.currency.symbol
+    } for ${trade.outputAmount.toExact()} ${trade.outputAmount.currency.symbol}`
 }
 
 
 export function createWallet(priKey: string, rpcUrl: string): ethers.Wallet {
   const provider = new ethers.JsonRpcProvider(
     rpcUrl
-  )
+  );
+  console.log(`provider `, provider.toString(), `priKey`, priKey);
   return new ethers.Wallet(priKey, provider)
 }
 
@@ -58,6 +58,22 @@ export async function getCurrencyBalance(
 
   // Format with proper units (approximate)
   return toReadableAmount(balance, decimals)
+}
+
+export async function getCurrencyDecimals(provider: Provider, currency: Currency): Promise<number> {
+  // Handle ETH directly
+  if (currency.isNative) {
+    return 18;
+  }
+
+  // Get currency otherwise
+  const ERC20Contract = new ethers.Contract(
+    currency.address,
+    ERC20_ABI,
+    provider
+  )
+  const decimals: number = await ERC20Contract.decimals()
+  return decimals;
 }
 
 // Interfaces
