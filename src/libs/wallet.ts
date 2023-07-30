@@ -12,7 +12,7 @@ import {
   WETH_ABI,
   WETH_CONTRACT_ADDRESS,
 } from './constants'
-import { getProvider, getWalletAddress, sendTransaction } from './providers'
+
 import { toReadableAmount } from './utils'
 
 export async function getCurrencyBalance(

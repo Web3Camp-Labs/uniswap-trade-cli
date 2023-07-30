@@ -1,7 +1,7 @@
 import { BaseProvider } from '@ethersproject/providers'
 import { ethers, Provider } from 'ethers'
 
-import { CurrentConfig, Environment } from '../config'
+import { CurrentConfig } from '../config'
 
 // Single copies of provider and wallet
 const mainnetProvider = new ethers.JsonRpcProvider(
@@ -21,11 +21,6 @@ export enum TransactionState {
 }
 
 // Provider and Wallet Functions
-
-export function getMainnetProvider(): ethers.JsonRpcProvider | BaseProvider {
-  return mainnetProvider
-}
-
 export function getProvider(): Provider | null {
   return wallet.provider
 }
@@ -47,9 +42,6 @@ export async function sendTransaction(
 
 function createWallet(): ethers.Wallet {
   let provider = mainnetProvider
-  if (CurrentConfig.env == Environment.LOCAL) {
-    provider = new ethers.JsonRpcProvider(CurrentConfig.rpc.local)
-  }
   return new ethers.Wallet(CurrentConfig.wallet.privateKey, provider)
 }
 
