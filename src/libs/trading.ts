@@ -297,7 +297,7 @@ export class Trading {
     }
 
     if (tradeInfo.tokenIn.isToken) { // Give approval to the router to spend the erc20 token
-      const tokenApproval = await this.getTokenTransferApproval(tradeInfo.tokenIn, tradeInfo.amount);
+      const tokenApproval = await this.getTokenTransferApproval(tradeInfo.tokenIn, tradeInfo.amount * 10); // [fixme] x10 approve amount
 
       // Fail if transfer approvals do not go through
       if (tokenApproval !== TransactionState.Sent) {
@@ -327,7 +327,7 @@ export class Trading {
       // maxPriorityFeePerGas: fee.maxPriorityFeePerGas
     }
 
-    const res = await sendTransaction(this._wallet, tx);
+    const res = await sendTransaction(this._wallet, tx, true);
 
     return res
   }
