@@ -1,20 +1,73 @@
 import { Token } from "@uniswap/sdk-core";
 import { Trading } from "./libs/trading";
+import { program } from "commander";
+import { loadTradeConfig } from "./tradeConf";
 import 'dotenv/config';
+import { pathToFileURL } from "url";
+import { exit } from "process";
 
 async function main() {
-    console.log(process.env.TEST_PRIVATE_KEY);
+
+    program
+        .name('uniswap-trade-cli')
+        .description('CLI to trade tokens on uniswap.')
+        .version('0.0.1');
+
+    program
+        .requiredOption('-n, --chain-id <string>', "The Chain ID of the network")
+        .option('-u, --rpc-url <string>', "HTTP URL of the RPC endpoint")
+        .option('-f, --config-file <string>', "The trade config file for batch trading")
+        // .option('-a, --amount-to-approve <string>', "Amount of tokens to approve for the swap. Make sure to use the correct decimals")
+        .option('-s, --amount-to-swap <string>', "Amount of tokens to swap. If you don't use the 'd' (decimals) flag, make sure to use the correct decimals")
+        .option('-i, --token-in <string>', "Address of the token to swap from")
+        .option('-o, --token-out <string>', "Address of the token to swap to");
+
+    program.parse();
+
+    let opts = program.opts();
+    console.debug(opts);
+
+    const conf = loadTradeConfig(opts.chainId);
+    if (!conf) {
+        console.error(`invalid chain id ${opts.chainId}`);
+        exit(-1);
+    }
+
+    if (!!opts.configFile) {
+        /// batch trading
+
+        console.debug(`config file is ${opts.configFile}`);
+
+    } else {
+        /// single trading
+        /// Check parameters
+
+        if (!opts.tokenIn) { console.error(`missing tokenIn address`); exit(-1); }
+        if (!opts.tokenOut) { console.error(`missing tokenOut address`); exit(-1); }
+        if (!opts.amountToSwap) { console.error(`missing amout to swap`); exit(-1); }
 
 
-    // const T = new Trading(process.env.TEST_PRIVATE_KEY!, 'https://eth.llamarpc.com', 1);
-    const T = new Trading(process.env.TEST_PRIVATE_KEY!, 'https://poly-rpc.gateway.pokt.network', 137);
+        const T = new Trading(
+            process.env.TRADE_PRIVATE_KEY!,
+            opts.rpcUrl || conf.rpc,
+            conf.chainId,
+            conf.poolFactoryAddress,
+            conf.quoterAddress,
+            conf.swapRouterAddress);
 
-    console.log(T);
+        console.log(T);
 
-    // const info = await T.getPoolInfo(new Token(1, '0xdAC17F958D2ee523a2206206994597C13D831ec7', 6), new Token(1, '0x6B175474E89094C44Da98b954EedeAC495271d0F', 18));
-    const info = await T.getPoolInfo(new Token(137, '0xc2132D05D31c914a87C6611C10748AEb04B58e8F', 6), new Token(137, '0x51cf1DC2c9cddd784D0f272e04621E991c4C49b2', 18));
+        // const info = await T.getPoolInfo(new Token(1, '0xdAC17F958D2ee523a2206206994597C13D831ec7', 6), new Token(1, '0x6B175474E89094C44Da98b954EedeAC495271d0F', 18));
+        // const info = await T.getPoolInfo(
+        //     new Token(137, '0xc2132D05D31c914a87C6611C10748AEb04B58e8F', 6),
+        //     new Token(137, '0x51cf1DC2c9cddd784D0f272e04621E991c4C49b2', 18));
 
-    console.log(`info ${info}`)
+        const info = await T.getPoolInfo(
+            new Token(conf.chainId, opts.tokenIn, 18),
+            new Token(conf.chainId, opts.tokenOut, 18));
+
+        console.log(`info ${info}`);
+    }
 
     console.log("hello world test");
 }
