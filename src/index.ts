@@ -125,12 +125,17 @@ async function main() {
         }
 
         var promisesArr: Promise<any>[] = [];
-        for (let index = 0; index < data.length; index++)  {
-            const elem = data[index];
-            // promisesArr.push(runOnce(conf.chainId, opts.rpcUrl, elem.privateKey, elem.tokenIn, elem.tokenOut, elem.amount))
 
-            await runOnce(conf.chainId, opts.rpcUrl, elem.privateKey, elem.tokenIn, elem.tokenOut, elem.amount)
+        for await (const iterator of data) {
+            await runOnce(conf.chainId, opts.rpcUrl, iterator.privateKey, iterator.tokenIn, iterator.tokenOut, iterator.amount);
         }
+
+        // for (let index = 0; index < data.length; index++)  {
+        //     const elem = data[index];
+        //     // promisesArr.push(runOnce(conf.chainId, opts.rpcUrl, elem.privateKey, elem.tokenIn, elem.tokenOut, elem.amount))
+
+        //     await runOnce(conf.chainId, opts.rpcUrl, elem.privateKey, elem.tokenIn, elem.tokenOut, elem.amount);
+        // }
 
         console.log(data);
         // await Promise.all(promisesArr)
