@@ -84,7 +84,7 @@ async function main() {
             new Token(conf.chainId, opts.tokenOut, 6),
             opts.amountToSwap
         );
-        console.debug(`trade info ${tradeInfo}`);
+        console.debug(`trade info:`, tradeInfo);
 
         const result = await T.executeTrade(tradeInfo);
         console.log(result);

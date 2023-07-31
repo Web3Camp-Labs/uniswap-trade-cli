@@ -90,7 +90,14 @@ export async function sendTransaction(wallet: ethers.Wallet,
   if (transaction.value) {
     transaction.value = BigInt(transaction.value)
   }
-  const txRes = await wallet.sendTransaction(transaction)
+
+  console.log(transaction);
+
+  console.log('before send transaction')
+  const txRes = await wallet.sendTransaction(transaction);
+
+
+  console.log(txRes);
 
   let receipt = null
   const provider = wallet.provider;

@@ -38,7 +38,7 @@ import {
 
 import IUniswapV3PoolABI from '@uniswap/v3-core/artifacts/contracts/interfaces/IUniswapV3Pool.sol/IUniswapV3Pool.json'
 import IUniswapV3FactoryABI from '@uniswap/v3-core/artifacts/contracts/interfaces/IUniswapV3Factory.sol/IUniswapV3Factory.json'
-import { ethers, toNumber } from 'ethers'
+import { Wallet, ethers, toBigInt, toNumber } from 'ethers'
 import { Provider } from 'ethers'
 
 import JSBI from 'jsbi'
@@ -158,13 +158,13 @@ export class Trading {
       tickSpacing,
       liquidity,
       sqrtPriceX96: slot0[0],
-      tick: slot0[1],
+      tick: toNumber(slot0[1]),
     }
   }
 
 
   async getTokenTransferApproval(
-    token: Token
+    token: Token, requiredAmount: number
   ): Promise<TransactionState> {
     const provider = this.getProvider()
     const address = this.getWalletAddress()
@@ -177,16 +177,25 @@ export class Trading {
       const tokenContract = new ethers.Contract(
         token.address,
         ERC20_ABI,
-        provider
+        this._wallet
       )
 
-      const transaction = await tokenContract.approve.populateTransaction(
-        this._swapRouterAddress,
-        fromReadableAmount(
-          TOKEN_AMOUNT_TO_APPROVE_FOR_TRANSFER,
-          token.decimals
-        ).toString()
-      )
+      const requiredAllowance = fromReadableAmount(
+        requiredAmount,
+        token.decimals
+      );
+
+      const allowance = await tokenContract.allowance(this.getWalletAddress(), this._swapRouterAddress);
+      if (allowance > requiredAllowance) {
+        console.debug('allowance > requiredAllowance');
+        return TransactionState.Sent
+      }
+
+      const transaction = await tokenContract.approve.populateTransaction(this._swapRouterAddress, requiredAllowance);
+      transaction.maxFeePerGas = toBigInt(MAX_FEE_PER_GAS);
+      transaction.maxPriorityFeePerGas = toBigInt(MAX_PRIORITY_FEE_PER_GAS);
+
+      console.debug('before approval transaction...');
 
       return sendTransaction(this._wallet, {
         ...transaction,
@@ -219,7 +228,7 @@ export class Trading {
       FeeAmount.LOW,
       poolInfo.sqrtPriceX96.toString(),
       poolInfo.liquidity.toString(),
-      toNumber(poolInfo.tick)
+      poolInfo.tick
     )
 
     console.log('pool:', pool);
@@ -296,6 +305,8 @@ export class Trading {
     if (tokenApproval !== TransactionState.Sent) {
       return TransactionState.Failed
     }
+
+    console.log('tokenApproval done');
 
     const options: SwapOptions = {
       slippageTolerance: new Percent(50, 10_000), // 50 bips, or 0.50%

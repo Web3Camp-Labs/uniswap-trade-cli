@@ -14,6 +14,7 @@ export const ERC20_ABI = [
   'function balanceOf(address owner) view returns (uint256)',
   'function decimals() view returns (uint8)',
   'function symbol() view returns (string)',
+  'function allowance(address owner, address spender) view returns (uint256)',
 
   // Authenticated Functions
   'function transfer(address to, uint amount) returns (bool)',
@@ -26,6 +27,6 @@ export const ERC20_ABI = [
 
 
 // Transactions
-export const MAX_FEE_PER_GAS = 100000000000
-export const MAX_PRIORITY_FEE_PER_GAS = 100000000000
+export const MAX_FEE_PER_GAS = 220 * 1000000000
+export const MAX_PRIORITY_FEE_PER_GAS = MAX_FEE_PER_GAS
 export const TOKEN_AMOUNT_TO_APPROVE_FOR_TRANSFER = 2000
