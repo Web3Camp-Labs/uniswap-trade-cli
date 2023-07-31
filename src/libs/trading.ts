@@ -299,7 +299,7 @@ export class Trading {
     }
 
     // Give approval to the router to spend the token
-    const tokenApproval = await this.getTokenTransferApproval(tradeInfo.tokenIn);
+    const tokenApproval = await this.getTokenTransferApproval(tradeInfo.tokenIn, tradeInfo.amount);
 
     // Fail if transfer approvals do not go through
     if (tokenApproval !== TransactionState.Sent) {
