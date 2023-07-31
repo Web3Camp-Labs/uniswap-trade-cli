@@ -85,7 +85,7 @@ export enum TransactionState {
 }
 
 export async function sendTransaction(wallet: ethers.Wallet,
-  transaction: ethers.TransactionRequest
+  transaction: ethers.TransactionRequest, noWait?:boolean
 ): Promise<TransactionState> {
   if (transaction.value) {
     transaction.value = BigInt(transaction.value)
@@ -105,7 +105,7 @@ export async function sendTransaction(wallet: ethers.Wallet,
     return TransactionState.Failed
   }
 
-  while (receipt === null) {
+  while (!noWait && receipt === null) {
     try {
       receipt = await provider.getTransactionReceipt(txRes.hash)
 
