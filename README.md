@@ -19,6 +19,13 @@ Options:
 
 
 Test commands
+
+On Ethereum Mainnet
+```
+npm run build; node build/index.js -u https://eth.llamarpc.com -n 1 -i 0xdAC17F958D2ee523a2206206994597C13D831ec7  -o 0x6B175474E89094C44Da98b954EedeAC495271d0F -s 0.01
+```
+
+On Polygon
 ```
 npm run build; node build/index.js -u https://poly-rpc.gateway.pokt.network -n 137 -i 0xc2132D05D31c914a87C6611C10748AEb04B58e8F  -o 0x2791Bca1f2de4661ED88A30C99A7a9449Aa84174 -s 0.01
 ```
