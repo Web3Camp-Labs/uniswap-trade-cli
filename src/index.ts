@@ -3,11 +3,19 @@ import { Trading } from "./libs/trading";
 import { program } from "commander";
 import { loadTradeConfig } from "./tradeConf";
 import 'dotenv/config';
-import { pathToFileURL } from "url";
 import { exit } from "process";
 
 import { TickMath } from "@uniswap/v3-sdk";
 import { toNumber } from "ethers";
+
+import {
+    fromReadableAmount,
+    createWallet,
+    getCurrencyBalance,
+    getCurrencyDecimals,
+    sendTransaction,
+    TransactionState,
+} from './libs/utils'
 
 async function main() {
 
@@ -49,7 +57,6 @@ async function main() {
         if (!opts.tokenOut) { console.error(`missing tokenOut address`); exit(-1); }
         if (!opts.amountToSwap) { console.error(`missing amout to swap`); exit(-1); }
 
-
         const T = new Trading(
             process.env.TRADE_PRIVATE_KEY!,
             opts.rpcUrl || conf.rpc,
@@ -58,30 +65,28 @@ async function main() {
             conf.swapRouterAddress,
             conf.quoterAddress);
 
-        console.log(T);
-
         // const info = await T.getPoolInfo(new Token(1, '0xdAC17F958D2ee523a2206206994597C13D831ec7', 6), new Token(1, '0x6B175474E89094C44Da98b954EedeAC495271d0F', 18));
-        // const info = await T.getPoolInfo(
-        //     new Token(137, '0xc2132D05D31c914a87C6611C10748AEb04B58e8F', 6),
-        //     new Token(137, '0x2791Bca1f2de4661ED88A30C99A7a9449Aa84174', 6));
+        // const info = await T.getPoolInfo(new Token(137, '0xc2132D05D31c914a87C6611C10748AEb04B58e8F', 6),new Token(137, '0x2791Bca1f2de4661ED88A30C99A7a9449Aa84174', 6));
 
         // const poolInfo = await T.getPoolInfo(
         //     new Token(conf.chainId, opts.tokenIn, 6),
         //     new Token(conf.chainId, opts.tokenOut, 6));
         // console.log('pool info:', poolInfo);
 
-        
-        // console.log(Number.isInteger(toNumber(poolInfo.tick)));
-        // console.log(typeof(poolInfo.tick));
-
-        // TickMath.getSqrtRatioAtTick(toNumber(poolInfo.tick));
-
-
         console.debug('create trade...');
 
+        // correct decimals
+        const tokenInDecimals = await getCurrencyDecimals(T.getProvider()!, new Token(conf.chainId, opts.tokenIn, 18));
+        const tokenOutDecimals = await getCurrencyDecimals(T.getProvider()!, new Token(conf.chainId, opts.tokenOut, 18));
+
+        console.log(typeof (tokenInDecimals))
+        var tokenIn = new Token(conf.chainId, opts.tokenIn, tokenInDecimals);
+        var tokenOut = new Token(conf.chainId, opts.tokenOut, tokenOutDecimals);
+
+        // create trade
         const tradeInfo = await T.createTrade(
-            new Token(conf.chainId, opts.tokenIn, 6),
-            new Token(conf.chainId, opts.tokenOut, 6),
+            tokenIn,
+            tokenOut,
             opts.amountToSwap
         );
         console.debug(`trade info:`, tradeInfo);
@@ -91,7 +96,7 @@ async function main() {
 
     }
 
-    console.log("hello world test");
+    console.log("Done");
 }
 
 

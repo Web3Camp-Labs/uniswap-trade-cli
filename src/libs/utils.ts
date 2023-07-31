@@ -1,6 +1,6 @@
 import { Token, TradeType } from '@uniswap/sdk-core'
 import { Trade } from '@uniswap/v3-sdk'
-import { ethers } from 'ethers'
+import { ethers, toNumber } from 'ethers'
 
 import { Currency } from '@uniswap/sdk-core'
 import { Provider } from 'ethers'
@@ -71,8 +71,8 @@ export async function getCurrencyDecimals(provider: Provider, currency: Currency
     ERC20_ABI,
     provider
   )
-  const decimals: number = await ERC20Contract.decimals()
-  return decimals;
+  const decimals: bigint = await ERC20Contract.decimals()
+  return toNumber(decimals);
 }
 
 // Interfaces
@@ -91,7 +91,7 @@ export async function sendTransaction(wallet: ethers.Wallet,
     transaction.value = BigInt(transaction.value)
   }
 
-  console.log(transaction);
+  // console.log(transaction);
 
   console.log('before send transaction')
   const txRes = await wallet.sendTransaction(transaction);

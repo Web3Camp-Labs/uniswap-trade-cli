@@ -102,24 +102,13 @@ export class Trading {
       throw new Error('No provider')
     }
 
-    // console.log(provider);
-
     const currentPoolAddress = computePoolAddress({
       factoryAddress: this._poolFactoryAddress,
       tokenA: tokenIn,
       tokenB: tokenOut,
-      fee: FeeAmount.LOW,
+      fee: FeeAmount.MEDIUM,
     })
-
-    // console.log(`currentPoolAddress ${currentPoolAddress}`);
-
-    // const testToken = new ethers.Contract(
-    //   tokenIn.address, 
-    //   ERC20_ABI,
-    //   provider
-    // );
-
-    // console.log(await testToken.symbol());
+    console.debug(`currentPoolAddress ${currentPoolAddress}`);
 
     // get pool 
     // const factoryContract = new ethers.Contract(
@@ -128,12 +117,9 @@ export class Trading {
     //   provider
     // );
 
-    // console.log(`token in ${tokenIn.address}, token out ${tokenOut.address}`);
-
-
-
-    // console.log('owner', await factoryContract.owner());
-    // console.log('pool', await factoryContract.getPool(tokenIn.address, tokenOut.address, 3000))
+    // console.debug(`token in ${tokenIn.address}, token out ${tokenOut.address}`);
+    // console.debug('owner', await factoryContract.owner());
+    // console.debug('pool', await factoryContract.getPool(tokenIn.address, tokenOut.address, 3000))
 
     const poolContract = new ethers.Contract(
       currentPoolAddress,
@@ -187,15 +173,18 @@ export class Trading {
 
       const allowance = await tokenContract.allowance(this.getWalletAddress(), this._swapRouterAddress);
       if (allowance > requiredAllowance) {
-        console.debug('allowance > requiredAllowance');
+        console.debug('Allowance is enough, no need for approval, continue.');
         return TransactionState.Sent
       }
 
-      const transaction = await tokenContract.approve.populateTransaction(this._swapRouterAddress, requiredAllowance);
-      transaction.maxFeePerGas = toBigInt(MAX_FEE_PER_GAS);
-      transaction.maxPriorityFeePerGas = toBigInt(MAX_PRIORITY_FEE_PER_GAS);
+      const fee = await this._wallet.provider!.getFeeData();
+      console.debug('fee', fee);
 
-      console.debug('before approval transaction...');
+      console.debug('Approve token.');
+      const transaction = await tokenContract.approve.populateTransaction(this._swapRouterAddress, requiredAllowance);
+      // transaction.gasPrice = fee.gasPrice!;
+      transaction.maxFeePerGas = fee.maxFeePerGas!;
+      transaction.maxPriorityFeePerGas = fee.maxPriorityFeePerGas!;
 
       return sendTransaction(this._wallet, {
         ...transaction,
@@ -218,20 +207,17 @@ export class Trading {
     }
 
     const poolInfo = await this.getPoolInfo(tokenIn, tokenOut);
-    console.log('[Trading] pool info:', poolInfo);
-
-    console.log('[Trading] poolInfo.tick:', poolInfo.tick);
 
     const pool = new Pool(
       tokenIn,
       tokenOut,
-      FeeAmount.LOW,
+      FeeAmount.MEDIUM,
       poolInfo.sqrtPriceX96.toString(),
       poolInfo.liquidity.toString(),
       poolInfo.tick
     )
 
-    console.log('pool:', pool);
+    // console.debug('pool:', pool);
 
     const swapRoute = new Route(
       [pool],
@@ -239,7 +225,7 @@ export class Trading {
       tokenOut
     );
 
-    console.log('swap route: ', swapRoute);
+    // console.debug('swap route: ', swapRoute);
 
     const { calldata } = SwapQuoter.quoteCallParameters(
       swapRoute,
@@ -283,7 +269,7 @@ export class Trading {
       pool: poolInfo,
       trade: uncheckedTrade,
       tokenIn: tokenIn,
-      tokenOut: tokenIn,
+      tokenOut: tokenOut,
       amount: amountIn
     };
   }
@@ -306,15 +292,15 @@ export class Trading {
       return TransactionState.Failed
     }
 
-    console.log('tokenApproval done');
-
     const options: SwapOptions = {
       slippageTolerance: new Percent(50, 10_000), // 50 bips, or 0.50%
       deadline: Math.floor(Date.now() / 1000) + 60 * 20, // 20 minutes from the current Unix time
       recipient: walletAddress,
     }
 
-    console.log(options);
+    const fee = await this._wallet.provider!.getFeeData();
+    // console.debug('fee', fee);
+    // console.debug('options', options);
 
     const methodParameters = SwapRouter.swapCallParameters([tradeInfo.trade], options)
 
@@ -323,8 +309,9 @@ export class Trading {
       to: this._swapRouterAddress,
       value: methodParameters.value,
       from: walletAddress,
-      maxFeePerGas: MAX_FEE_PER_GAS,
-      maxPriorityFeePerGas: MAX_PRIORITY_FEE_PER_GAS,
+      // gasPrice: fee.gasPrice,
+      maxFeePerGas: fee.maxFeePerGas,
+      maxPriorityFeePerGas: fee.maxPriorityFeePerGas
     }
 
     const res = await sendTransaction(this._wallet, tx)
