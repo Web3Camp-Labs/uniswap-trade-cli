@@ -81,8 +81,6 @@ export class Trading {
       key = "0x" + key;
     }
 
-    console.log(key);
-
     this._wallet = createWallet(key, provider);
     this._chainId = chainId;
 
@@ -108,16 +106,16 @@ export class Trading {
       throw new Error('No provider')
     }
 
-    console.log(provider);
+    // console.log(provider);
 
     const currentPoolAddress = computePoolAddress({
       factoryAddress: this._poolFactoryAddress,
       tokenA: tokenIn,
       tokenB: tokenOut,
-      fee: FeeAmount.MEDIUM,
+      fee: FeeAmount.LOW,
     })
 
-    console.log(`currentPoolAddress ${currentPoolAddress}`);
+    // console.log(`currentPoolAddress ${currentPoolAddress}`);
 
     // const testToken = new ethers.Contract(
     //   tokenIn.address, 
@@ -134,12 +132,12 @@ export class Trading {
       provider
     );
 
-    console.log(`token in ${tokenIn.address}, token out ${tokenOut.address}`);
+    // console.log(`token in ${tokenIn.address}, token out ${tokenOut.address}`);
 
-    
 
-    console.log('owner', await factoryContract.owner());
-    console.log('pool', await factoryContract.getPool(tokenIn.address, tokenOut.address, 3000))
+
+    // console.log('owner', await factoryContract.owner());
+    // console.log('pool', await factoryContract.getPool(tokenIn.address, tokenOut.address, 3000))
 
     const poolContract = new ethers.Contract(
       currentPoolAddress,
@@ -215,21 +213,28 @@ export class Trading {
     }
 
     const poolInfo = await this.getPoolInfo(tokenIn, tokenOut);
+    console.log('[Trading] pool info:', poolInfo);
+
+    console.log('[Trading] poolInfo.tick:', poolInfo.tick);
 
     const pool = new Pool(
       tokenIn,
       tokenOut,
-      FeeAmount.MEDIUM,
+      FeeAmount.LOW,
       poolInfo.sqrtPriceX96.toString(),
       poolInfo.liquidity.toString(),
       poolInfo.tick
     )
 
+    console.log('pool:', pool);
+
     const swapRoute = new Route(
       [pool],
       tokenIn,
       tokenOut
-    )
+    );
+
+    console.log('swap route: ', swapRoute);
 
     const { calldata } = SwapQuoter.quoteCallParameters(
       swapRoute,

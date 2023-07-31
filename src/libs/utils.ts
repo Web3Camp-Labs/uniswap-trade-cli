@@ -33,7 +33,6 @@ export function createWallet(priKey: string, rpcUrl: string): ethers.Wallet {
   const provider = new ethers.JsonRpcProvider(
     rpcUrl
   );
-  console.log(`provider `, provider.toString(), `priKey`, priKey);
   return new ethers.Wallet(priKey, provider)
 }
 

@@ -20,5 +20,5 @@ Options:
 
 Test commands
 ```
-npm run build; node build/index.js -u https://poly-rpc.gateway.pokt.network -n 137 -i 0xc2132D05D31c914a87C6611C10748AEb04B58e8F  -o 0x51cf1DC2c9cddd784D0f272e04621E991c4C49b2 -s 0.01
+npm run build; node build/index.js -u https://poly-rpc.gateway.pokt.network -n 137 -i 0xc2132D05D31c914a87C6611C10748AEb04B58e8F  -o 0x2791Bca1f2de4661ED88A30C99A7a9449Aa84174 -s 0.01
 ```

@@ -60,13 +60,22 @@ async function main() {
         // const info = await T.getPoolInfo(new Token(1, '0xdAC17F958D2ee523a2206206994597C13D831ec7', 6), new Token(1, '0x6B175474E89094C44Da98b954EedeAC495271d0F', 18));
         // const info = await T.getPoolInfo(
         //     new Token(137, '0xc2132D05D31c914a87C6611C10748AEb04B58e8F', 6),
-        //     new Token(137, '0x51cf1DC2c9cddd784D0f272e04621E991c4C49b2', 18));
+        //     new Token(137, '0x2791Bca1f2de4661ED88A30C99A7a9449Aa84174', 6));
 
-        const info = await T.getPoolInfo(
-            new Token(conf.chainId, opts.tokenIn, 18),
-            new Token(conf.chainId, opts.tokenOut, 18));
+        const poolInfo = await T.getPoolInfo(
+            new Token(conf.chainId, opts.tokenIn, 6),
+            new Token(conf.chainId, opts.tokenOut, 6));
+        console.log('pool info:', poolInfo);
 
-        console.log(`info ${info}`);
+        console.debug('creat trade...');
+
+        const tradeInfo = await T.createTrade(
+            new Token(conf.chainId, opts.tokenIn, 6),
+            new Token(conf.chainId, opts.tokenOut, 6),
+            opts.amountToSwap
+        );
+        console.debug(`trade info ${tradeInfo}`);
+
     }
 
     console.log("hello world test");
