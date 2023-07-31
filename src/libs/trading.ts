@@ -27,8 +27,6 @@ import {
   POOL_FACTORY_CONTRACT_ADDRESS,
 } from './constants'
 
-
-
 import {
   fromReadableAmount,
   createWallet,
@@ -38,10 +36,9 @@ import {
   TransactionState,
 } from './utils'
 
-
 import IUniswapV3PoolABI from '@uniswap/v3-core/artifacts/contracts/interfaces/IUniswapV3Pool.sol/IUniswapV3Pool.json'
 import IUniswapV3FactoryABI from '@uniswap/v3-core/artifacts/contracts/interfaces/IUniswapV3Factory.sol/IUniswapV3Factory.json'
-import { ethers } from 'ethers'
+import { ethers, toNumber } from 'ethers'
 import { Provider } from 'ethers'
 
 import JSBI from 'jsbi'
@@ -66,7 +63,6 @@ export interface TradeInfo {
   amount: number,
   trade: TokenTrade
 }
-
 
 export class Trading {
 
@@ -126,11 +122,11 @@ export class Trading {
     // console.log(await testToken.symbol());
 
     // get pool 
-    const factoryContract = new ethers.Contract(
-      this._poolFactoryAddress,
-      IUniswapV3FactoryABI.abi,
-      provider
-    );
+    // const factoryContract = new ethers.Contract(
+    //   this._poolFactoryAddress,
+    //   IUniswapV3FactoryABI.abi,
+    //   provider
+    // );
 
     // console.log(`token in ${tokenIn.address}, token out ${tokenOut.address}`);
 
@@ -223,7 +219,7 @@ export class Trading {
       FeeAmount.LOW,
       poolInfo.sqrtPriceX96.toString(),
       poolInfo.liquidity.toString(),
-      poolInfo.tick
+      toNumber(poolInfo.tick)
     )
 
     console.log('pool:', pool);
@@ -306,6 +302,8 @@ export class Trading {
       deadline: Math.floor(Date.now() / 1000) + 60 * 20, // 20 minutes from the current Unix time
       recipient: walletAddress,
     }
+
+    console.log(options);
 
     const methodParameters = SwapRouter.swapCallParameters([tradeInfo.trade], options)
 

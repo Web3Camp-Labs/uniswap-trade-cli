@@ -6,6 +6,9 @@ import 'dotenv/config';
 import { pathToFileURL } from "url";
 import { exit } from "process";
 
+import { TickMath } from "@uniswap/v3-sdk";
+import { toNumber } from "ethers";
+
 async function main() {
 
     program
@@ -52,8 +55,8 @@ async function main() {
             opts.rpcUrl || conf.rpc,
             conf.chainId,
             conf.poolFactoryAddress,
-            conf.quoterAddress,
-            conf.swapRouterAddress);
+            conf.swapRouterAddress,
+            conf.quoterAddress);
 
         console.log(T);
 
@@ -62,12 +65,19 @@ async function main() {
         //     new Token(137, '0xc2132D05D31c914a87C6611C10748AEb04B58e8F', 6),
         //     new Token(137, '0x2791Bca1f2de4661ED88A30C99A7a9449Aa84174', 6));
 
-        const poolInfo = await T.getPoolInfo(
-            new Token(conf.chainId, opts.tokenIn, 6),
-            new Token(conf.chainId, opts.tokenOut, 6));
-        console.log('pool info:', poolInfo);
+        // const poolInfo = await T.getPoolInfo(
+        //     new Token(conf.chainId, opts.tokenIn, 6),
+        //     new Token(conf.chainId, opts.tokenOut, 6));
+        // console.log('pool info:', poolInfo);
 
-        console.debug('creat trade...');
+        
+        // console.log(Number.isInteger(toNumber(poolInfo.tick)));
+        // console.log(typeof(poolInfo.tick));
+
+        // TickMath.getSqrtRatioAtTick(toNumber(poolInfo.tick));
+
+
+        console.debug('create trade...');
 
         const tradeInfo = await T.createTrade(
             new Token(conf.chainId, opts.tokenIn, 6),
@@ -75,6 +85,9 @@ async function main() {
             opts.amountToSwap
         );
         console.debug(`trade info ${tradeInfo}`);
+
+        const result = await T.executeTrade(tradeInfo);
+        console.log(result);
 
     }
 
