@@ -102,24 +102,36 @@ export class Trading {
       throw new Error('No provider')
     }
 
-    const currentPoolAddress = computePoolAddress({
-      factoryAddress: this._poolFactoryAddress,
-      tokenA: tokenIn,
-      tokenB: tokenOut,
-      fee: FeeAmount.MEDIUM,
-    })
-    console.debug(`currentPoolAddress ${currentPoolAddress}`);
+    // const currentPoolAddress = computePoolAddress({
+    //   factoryAddress: this._poolFactoryAddress,
+    //   tokenA: tokenIn,
+    //   tokenB: tokenOut,
+    //   fee: FeeAmount.MEDIUM,
+    // })
+    // console.debug(`currentPoolAddress ${currentPoolAddress}`);
 
     // get pool 
-    // const factoryContract = new ethers.Contract(
-    //   this._poolFactoryAddress,
-    //   IUniswapV3FactoryABI.abi,
-    //   provider
-    // );
+    const factoryContract = new ethers.Contract(
+      this._poolFactoryAddress,
+      IUniswapV3FactoryABI.abi,
+      provider
+    );
 
     // console.debug(`token in ${tokenIn.address}, token out ${tokenOut.address}`);
     // console.debug('owner', await factoryContract.owner());
-    // console.debug('pool', await factoryContract.getPool(tokenIn.address, tokenOut.address, 3000))
+    // console.debug('pool', await factoryContract.getPool(tokenIn.address, tokenOut.address, FeeAmount.LOW))
+
+    var currentPoolAddress: string;
+
+    currentPoolAddress = await factoryContract.getPool(tokenIn.address, tokenOut.address, FeeAmount.LOWEST);
+    if (currentPoolAddress == '0x0000000000000000000000000000000000000000') currentPoolAddress = await factoryContract.getPool(tokenIn.address, tokenOut.address, FeeAmount.LOW);
+    if (currentPoolAddress == '0x0000000000000000000000000000000000000000') currentPoolAddress = await factoryContract.getPool(tokenIn.address, tokenOut.address, FeeAmount.MEDIUM);
+    if (currentPoolAddress == '0x0000000000000000000000000000000000000000') currentPoolAddress = await factoryContract.getPool(tokenIn.address, tokenOut.address, FeeAmount.HIGH);
+
+    if (currentPoolAddress == '0x0000000000000000000000000000000000000000') {
+      throw new Error('Pool not founded!');
+    }
+    console.debug(`currentPoolAddress ${currentPoolAddress}`);
 
     const poolContract = new ethers.Contract(
       currentPoolAddress,
@@ -174,7 +186,7 @@ export class Trading {
       const allowance = await tokenContract.allowance(this.getWalletAddress(), this._swapRouterAddress);
       if (allowance > requiredAllowance) {
         console.debug('Allowance is enough, no need for approval, continue.');
-        return TransactionState.Sent
+        return TransactionState.Sent;
       }
 
       const fee = await this._wallet.provider!.getFeeData();
@@ -182,9 +194,9 @@ export class Trading {
 
       console.debug('Approve token.');
       const transaction = await tokenContract.approve.populateTransaction(this._swapRouterAddress, requiredAllowance);
-      // transaction.gasPrice = fee.gasPrice!;
-      transaction.maxFeePerGas = fee.maxFeePerGas!;
-      transaction.maxPriorityFeePerGas = fee.maxPriorityFeePerGas!;
+      transaction.gasPrice = fee.gasPrice!;// [fixme] polygon issue
+      // transaction.maxFeePerGas = fee.maxFeePerGas!;
+      // transaction.maxPriorityFeePerGas = fee.maxPriorityFeePerGas!;
 
       return sendTransaction(this._wallet, {
         ...transaction,
@@ -284,12 +296,13 @@ export class Trading {
       throw new Error('Cannot execute a trade without a connected wallet')
     }
 
-    // Give approval to the router to spend the token
-    const tokenApproval = await this.getTokenTransferApproval(tradeInfo.tokenIn, tradeInfo.amount);
+    if (tradeInfo.tokenIn.isToken) { // Give approval to the router to spend the erc20 token
+      const tokenApproval = await this.getTokenTransferApproval(tradeInfo.tokenIn, tradeInfo.amount);
 
-    // Fail if transfer approvals do not go through
-    if (tokenApproval !== TransactionState.Sent) {
-      return TransactionState.Failed
+      // Fail if transfer approvals do not go through
+      if (tokenApproval !== TransactionState.Sent) {
+        return TransactionState.Failed
+      }
     }
 
     const options: SwapOptions = {
@@ -309,12 +322,12 @@ export class Trading {
       to: this._swapRouterAddress,
       value: methodParameters.value,
       from: walletAddress,
-      // gasPrice: fee.gasPrice,
-      maxFeePerGas: fee.maxFeePerGas,
-      maxPriorityFeePerGas: fee.maxPriorityFeePerGas
+      gasPrice: fee.gasPrice, // [fixme] polygon issue
+      // maxFeePerGas: fee.maxFeePerGas,
+      // maxPriorityFeePerGas: fee.maxPriorityFeePerGas
     }
 
-    const res = await sendTransaction(this._wallet, tx)
+    const res = await sendTransaction(this._wallet, tx);
 
     return res
   }
