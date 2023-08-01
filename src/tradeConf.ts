@@ -30,7 +30,6 @@ const CONTRACT_CONFIG: Array<ExampleConfig> = [
 ];
 
 export function loadTradeConfig(chainId: number): ExampleConfig | null {
-    console.debug(`chainId ${chainId}`);
     for (let index = 0; index < CONTRACT_CONFIG.length; index++) {
         const element = CONTRACT_CONFIG[index];
         if (element.chainId == chainId) {

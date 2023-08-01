@@ -27,9 +27,8 @@ import {
   POOL_FACTORY_CONTRACT_ADDRESS,
 } from './constants'
 
-
-
 import {
+  displayTrade,
   fromReadableAmount,
   createWallet,
   getCurrencyBalance,
@@ -38,10 +37,9 @@ import {
   TransactionState,
 } from './utils'
 
-
 import IUniswapV3PoolABI from '@uniswap/v3-core/artifacts/contracts/interfaces/IUniswapV3Pool.sol/IUniswapV3Pool.json'
 import IUniswapV3FactoryABI from '@uniswap/v3-core/artifacts/contracts/interfaces/IUniswapV3Factory.sol/IUniswapV3Factory.json'
-import { ethers } from 'ethers'
+import { Wallet, ethers, toBigInt, toNumber } from 'ethers'
 import { Provider } from 'ethers'
 
 import JSBI from 'jsbi'
@@ -66,7 +64,6 @@ export interface TradeInfo {
   amount: number,
   trade: TokenTrade
 }
-
 
 export class Trading {
 
@@ -106,38 +103,33 @@ export class Trading {
       throw new Error('No provider')
     }
 
-    // console.log(provider);
+    //// computePoolAddress
+    // const currentPoolAddress = computePoolAddress({
+    //   factoryAddress: this._poolFactoryAddress,
+    //   tokenA: tokenIn,
+    //   tokenB: tokenOut,
+    //   fee: FeeAmount.MEDIUM,
+    // })
+    // console.debug(`currentPoolAddress ${currentPoolAddress}`);
 
-    const currentPoolAddress = computePoolAddress({
-      factoryAddress: this._poolFactoryAddress,
-      tokenA: tokenIn,
-      tokenB: tokenOut,
-      fee: FeeAmount.LOW,
-    })
-
-    // console.log(`currentPoolAddress ${currentPoolAddress}`);
-
-    // const testToken = new ethers.Contract(
-    //   tokenIn.address, 
-    //   ERC20_ABI,
-    //   provider
-    // );
-
-    // console.log(await testToken.symbol());
-
-    // get pool 
+    /// fetch pool address from factory contract
     const factoryContract = new ethers.Contract(
       this._poolFactoryAddress,
       IUniswapV3FactoryABI.abi,
       provider
     );
 
-    // console.log(`token in ${tokenIn.address}, token out ${tokenOut.address}`);
+    var currentPoolAddress: string;
 
+    currentPoolAddress = await factoryContract.getPool(tokenIn.address, tokenOut.address, FeeAmount.LOWEST);
+    if (currentPoolAddress == '0x0000000000000000000000000000000000000000') currentPoolAddress = await factoryContract.getPool(tokenIn.address, tokenOut.address, FeeAmount.LOW);
+    if (currentPoolAddress == '0x0000000000000000000000000000000000000000') currentPoolAddress = await factoryContract.getPool(tokenIn.address, tokenOut.address, FeeAmount.MEDIUM);
+    if (currentPoolAddress == '0x0000000000000000000000000000000000000000') currentPoolAddress = await factoryContract.getPool(tokenIn.address, tokenOut.address, FeeAmount.HIGH);
 
-
-    // console.log('owner', await factoryContract.owner());
-    // console.log('pool', await factoryContract.getPool(tokenIn.address, tokenOut.address, 3000))
+    if (currentPoolAddress == '0x0000000000000000000000000000000000000000') {
+      throw new Error('Pool not founded!');
+    }
+    console.debug(`currentPoolAddress ${currentPoolAddress}`);
 
     const poolContract = new ethers.Contract(
       currentPoolAddress,
@@ -158,22 +150,22 @@ export class Trading {
     return {
       token0,
       token1,
-      fee,
+      fee: toNumber(fee),
       tickSpacing,
       liquidity,
       sqrtPriceX96: slot0[0],
-      tick: slot0[1],
+      tick: toNumber(slot0[1]),
     }
   }
 
 
-  async getTokenTransferApproval(
+  async getTokenApprovalMax(
     token: Token
   ): Promise<TransactionState> {
     const provider = this.getProvider()
     const address = this.getWalletAddress()
     if (!provider || !address) {
-      console.log('No Provider Found')
+      console.error('null provider');
       return TransactionState.Failed
     }
 
@@ -181,16 +173,51 @@ export class Trading {
       const tokenContract = new ethers.Contract(
         token.address,
         ERC20_ABI,
-        provider
+        this._wallet
       )
 
-      const transaction = await tokenContract.approve.populateTransaction(
-        this._swapRouterAddress,
-        fromReadableAmount(
-          TOKEN_AMOUNT_TO_APPROVE_FOR_TRANSFER,
-          token.decimals
-        ).toString()
+      console.debug('approve max...');
+      const transaction = await tokenContract.approve.populateTransaction(this._swapRouterAddress, ethers.MaxUint256);
+
+      return sendTransaction(this._wallet, {
+        ...transaction,
+        from: address,
+      });
+    } catch (e) {
+      console.error(e);
+      return TransactionState.Failed;
+    }
+  }
+
+  async getTokenTransferApproval(
+    token: Token, requiredAmount: number
+  ): Promise<TransactionState> {
+    const provider = this.getProvider()
+    const address = this.getWalletAddress()
+    if (!provider || !address) {
+      console.error('null provider');
+      return TransactionState.Failed;
+    }
+
+    try {
+      const tokenContract = new ethers.Contract(
+        token.address,
+        ERC20_ABI,
+        this._wallet
       )
+
+      const requiredAllowance = fromReadableAmount(
+        requiredAmount,
+        token.decimals
+      );
+
+      const allowance = await tokenContract.allowance(address, this._swapRouterAddress);
+      if (allowance > requiredAllowance) {
+        console.debug('allowance is enough, continue.');
+        return TransactionState.Sent;
+      }
+
+      const transaction = await tokenContract.approve.populateTransaction(this._swapRouterAddress, requiredAllowance);
 
       return sendTransaction(this._wallet, {
         ...transaction,
@@ -213,20 +240,18 @@ export class Trading {
     }
 
     const poolInfo = await this.getPoolInfo(tokenIn, tokenOut);
-    console.log('[Trading] pool info:', poolInfo);
-
-    console.log('[Trading] poolInfo.tick:', poolInfo.tick);
+    // console.log(poolInfo);
 
     const pool = new Pool(
       tokenIn,
       tokenOut,
-      FeeAmount.LOW,
+      poolInfo.fee,
       poolInfo.sqrtPriceX96.toString(),
       poolInfo.liquidity.toString(),
       poolInfo.tick
     )
 
-    console.log('pool:', pool);
+    // console.debug('pool:', pool);
 
     const swapRoute = new Route(
       [pool],
@@ -234,7 +259,7 @@ export class Trading {
       tokenOut
     );
 
-    console.log('swap route: ', swapRoute);
+    // console.debug('swap route: ', swapRoute);
 
     const { calldata } = SwapQuoter.quoteCallParameters(
       swapRoute,
@@ -251,12 +276,19 @@ export class Trading {
       }
     )
 
+    // console.log('calldata: ', calldata);
+    // console.log('quoterAddress: ', this._quoterAddress);
+
     const quoteCallReturnData = await provider.call({
       to: this._quoterAddress,
       data: calldata,
-    })
+    });
 
-    const amountOut = ethers.AbiCoder.defaultAbiCoder().decode(['uint256'], quoteCallReturnData)
+    // console.log('quoteCallReturnData: ', quoteCallReturnData);
+
+    const amountOut = ethers.AbiCoder.defaultAbiCoder().decode(['uint256'], quoteCallReturnData);
+
+    // console.log("swap out amount: ", amountOut);
 
     const uncheckedTrade = Trade.createUncheckedTrade({
       route: swapRoute,
@@ -274,11 +306,13 @@ export class Trading {
       tradeType: TradeType.EXACT_INPUT,
     })
 
+    console.log(displayTrade(uncheckedTrade));
+
     return {
       pool: poolInfo,
       trade: uncheckedTrade,
       tokenIn: tokenIn,
-      tokenOut: tokenIn,
+      tokenOut: tokenOut,
       amount: amountIn
     };
   }
@@ -293,14 +327,6 @@ export class Trading {
       throw new Error('Cannot execute a trade without a connected wallet')
     }
 
-    // Give approval to the router to spend the token
-    const tokenApproval = await this.getTokenTransferApproval(tradeInfo.tokenIn);
-
-    // Fail if transfer approvals do not go through
-    if (tokenApproval !== TransactionState.Sent) {
-      return TransactionState.Failed
-    }
-
     const options: SwapOptions = {
       slippageTolerance: new Percent(50, 10_000), // 50 bips, or 0.50%
       deadline: Math.floor(Date.now() / 1000) + 60 * 20, // 20 minutes from the current Unix time
@@ -313,12 +339,10 @@ export class Trading {
       data: methodParameters.calldata,
       to: this._swapRouterAddress,
       value: methodParameters.value,
-      from: walletAddress,
-      maxFeePerGas: MAX_FEE_PER_GAS,
-      maxPriorityFeePerGas: MAX_PRIORITY_FEE_PER_GAS,
+      from: walletAddress
     }
 
-    const res = await sendTransaction(this._wallet, tx)
+    const res = await sendTransaction(this._wallet, tx, true);
 
     return res
   }

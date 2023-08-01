@@ -1,6 +1,6 @@
 import { Token, TradeType } from '@uniswap/sdk-core'
 import { Trade } from '@uniswap/v3-sdk'
-import { ethers } from 'ethers'
+import { ethers, toNumber } from 'ethers'
 
 import { Currency } from '@uniswap/sdk-core'
 import { Provider } from 'ethers'
@@ -27,7 +27,6 @@ export function displayTrade(trade: Trade<Token, Token, TradeType>): string {
   return `${trade.inputAmount.toExact()} ${trade.inputAmount.currency.symbol
     } for ${trade.outputAmount.toExact()} ${trade.outputAmount.currency.symbol}`
 }
-
 
 export function createWallet(priKey: string, rpcUrl: string): ethers.Wallet {
   const provider = new ethers.JsonRpcProvider(
@@ -71,8 +70,8 @@ export async function getCurrencyDecimals(provider: Provider, currency: Currency
     ERC20_ABI,
     provider
   )
-  const decimals: number = await ERC20Contract.decimals()
-  return decimals;
+  const decimals: bigint = await ERC20Contract.decimals()
+  return toNumber(decimals);
 }
 
 // Interfaces
@@ -84,21 +83,36 @@ export enum TransactionState {
   Sent = 'Sent',
 }
 
-export async function sendTransaction(wallet: ethers.Wallet,
-  transaction: ethers.TransactionRequest
+export async function sendTransaction(
+  wallet: ethers.Wallet,
+  transaction: ethers.TransactionRequest,
+  noWait?: boolean
 ): Promise<TransactionState> {
+
+  console.log('send transaction for ...', wallet.address);
+  const provider = wallet.provider;
+  if (!provider) {
+    console.error('null provider');
+    return TransactionState.Failed;
+  }
+
   if (transaction.value) {
     transaction.value = BigInt(transaction.value)
   }
-  const txRes = await wallet.sendTransaction(transaction)
 
-  let receipt = null
-  const provider = wallet.provider;
-  if (!provider) {
-    return TransactionState.Failed
+  // TODO: optimize gas price according to configuration. 
+  const fee = await provider!.getFeeData();
+  if ((await provider!.getNetwork()).chainId === 137n) { // [fixme] polygon issue
+    transaction.gasPrice = fee.gasPrice! * 2n;
+  } else {
+    transaction.maxFeePerGas = fee.maxFeePerGas! * 2n;
+    transaction.maxPriorityFeePerGas = fee.maxPriorityFeePerGas! * 2n;
   }
 
-  while (receipt === null) {
+  const txRes = await wallet.sendTransaction(transaction);
+  let receipt = null;
+
+  while (!noWait && receipt === null) {
     try {
       receipt = await provider.getTransactionReceipt(txRes.hash)
 
@@ -111,8 +125,8 @@ export async function sendTransaction(wallet: ethers.Wallet,
     }
   }
 
-  // Transaction was successful if status === 1
-  if (receipt) {
+  // Transaction was successful if status === 1 or won wait for result.
+  if (receipt || noWait) {
     return TransactionState.Sent
   } else {
     return TransactionState.Failed
