@@ -28,7 +28,6 @@ export function displayTrade(trade: Trade<Token, Token, TradeType>): string {
     } for ${trade.outputAmount.toExact()} ${trade.outputAmount.currency.symbol}`
 }
 
-
 export function createWallet(priKey: string, rpcUrl: string): ethers.Wallet {
   const provider = new ethers.JsonRpcProvider(
     rpcUrl
@@ -84,25 +83,34 @@ export enum TransactionState {
   Sent = 'Sent',
 }
 
-export async function sendTransaction(wallet: ethers.Wallet,
-  transaction: ethers.TransactionRequest, noWait?:boolean
+export async function sendTransaction(
+  wallet: ethers.Wallet,
+  transaction: ethers.TransactionRequest,
+  noWait?: boolean
 ): Promise<TransactionState> {
+
+  console.log('send transaction for ...', wallet.address);
+  const provider = wallet.provider;
+  if (!provider) {
+    console.error('null provider');
+    return TransactionState.Failed;
+  }
+
   if (transaction.value) {
     transaction.value = BigInt(transaction.value)
   }
 
-  // console.log(transaction);
-
-  console.log('send transaction...')
-  const txRes = await wallet.sendTransaction(transaction);
-
-  // console.log(txRes);
-
-  let receipt = null
-  const provider = wallet.provider;
-  if (!provider) {
-    return TransactionState.Failed
+  // TODO: optimize gas price according to configuration. 
+  const fee = await provider!.getFeeData();
+  if ((await provider!.getNetwork()).chainId === 137n) { // [fixme] polygon issue
+    transaction.gasPrice = fee.gasPrice! * 2n;
+  } else {
+    transaction.maxFeePerGas = fee.maxFeePerGas! * 2n;
+    transaction.maxPriorityFeePerGas = fee.maxPriorityFeePerGas! * 2n;
   }
+
+  const txRes = await wallet.sendTransaction(transaction);
+  let receipt = null;
 
   while (!noWait && receipt === null) {
     try {
@@ -117,8 +125,8 @@ export async function sendTransaction(wallet: ethers.Wallet,
     }
   }
 
-  // Transaction was successful if status === 1
-  if (receipt) {
+  // Transaction was successful if status === 1 or won wait for result.
+  if (receipt || noWait) {
     return TransactionState.Sent
   } else {
     return TransactionState.Failed

@@ -13,8 +13,9 @@ Options:
   -s, --amount-to-swap <string>  Amount of tokens to swap. If you don't use the 'd' (decimals) flag, make sure to use the correct decimals
   -i, --token-in <string>        Address of the token to swap from
   -o, --token-out <string>       Address of the token to swap to
+  -m, --approval-max             Approval max allowance for token (default: false)
+  -p, --needApproval             Need approval or not for token (default: false)
   -h, --help                     display help for command
-  -v, --version                  display version for command
 ```
 
 
@@ -27,7 +28,7 @@ npm run build; node build/index.js -n 1 -u https://eth.llamarpc.com  -i 0xdAC17F
 
 Single run on Polygon
 ```
-npm run build; node build/index.js -n 137 -u https://poly-rpc.gateway.pokt.network  -i 0xc2132D05D31c914a87C6611C10748AEb04B58e8F  -o 0x2791Bca1f2de4661ED88A30C99A7a9449Aa84174 -s 0.01
+npm run build; node build/index.js -n 137 -u https://polygon-mainnet.infura.io/v3/50676f4e9b9d4780a34fc8a503ff7f4f  -i 0xc2132D05D31c914a87C6611C10748AEb04B58e8F  -o 0x2791Bca1f2de4661ED88A30C99A7a9449Aa84174 -s 0.01
 ```
 
 
@@ -38,5 +39,5 @@ npm run build; node build/index.js -n 1 -u https://eth.llamarpc.com  -f ./test.c
 
 Batch run on Polygon
 ```
-npm run build; node build/index.js -n 137 -u https://poly-rpc.gateway.pokt.network -f ./test.csv
+npm run build; node build/index.js -n 137 -u https://polygon-mainnet.infura.io/v3/50676f4e9b9d4780a34fc8a503ff7f4f -f ./test.csv
 ```

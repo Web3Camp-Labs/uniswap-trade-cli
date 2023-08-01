@@ -28,6 +28,7 @@ import {
 } from './constants'
 
 import {
+  displayTrade,
   fromReadableAmount,
   createWallet,
   getCurrencyBalance,
@@ -102,6 +103,7 @@ export class Trading {
       throw new Error('No provider')
     }
 
+    //// computePoolAddress
     // const currentPoolAddress = computePoolAddress({
     //   factoryAddress: this._poolFactoryAddress,
     //   tokenA: tokenIn,
@@ -110,16 +112,12 @@ export class Trading {
     // })
     // console.debug(`currentPoolAddress ${currentPoolAddress}`);
 
-    // get pool 
+    /// fetch pool address from factory contract
     const factoryContract = new ethers.Contract(
       this._poolFactoryAddress,
       IUniswapV3FactoryABI.abi,
       provider
     );
-
-    // console.debug(`token in ${tokenIn.address}, token out ${tokenOut.address}`);
-    // console.debug('owner', await factoryContract.owner());
-    // console.debug('pool', await factoryContract.getPool(tokenIn.address, tokenOut.address, FeeAmount.LOW))
 
     var currentPoolAddress: string;
 
@@ -152,7 +150,7 @@ export class Trading {
     return {
       token0,
       token1,
-      fee,
+      fee: toNumber(fee),
       tickSpacing,
       liquidity,
       sqrtPriceX96: slot0[0],
@@ -161,14 +159,44 @@ export class Trading {
   }
 
 
+  async getTokenApprovalMax(
+    token: Token
+  ): Promise<TransactionState> {
+    const provider = this.getProvider()
+    const address = this.getWalletAddress()
+    if (!provider || !address) {
+      console.error('null provider');
+      return TransactionState.Failed
+    }
+
+    try {
+      const tokenContract = new ethers.Contract(
+        token.address,
+        ERC20_ABI,
+        this._wallet
+      )
+
+      console.debug('approve max...');
+      const transaction = await tokenContract.approve.populateTransaction(this._swapRouterAddress, ethers.MaxUint256);
+
+      return sendTransaction(this._wallet, {
+        ...transaction,
+        from: address,
+      });
+    } catch (e) {
+      console.error(e);
+      return TransactionState.Failed;
+    }
+  }
+
   async getTokenTransferApproval(
     token: Token, requiredAmount: number
   ): Promise<TransactionState> {
     const provider = this.getProvider()
     const address = this.getWalletAddress()
     if (!provider || !address) {
-      console.log('No Provider Found')
-      return TransactionState.Failed
+      console.error('null provider');
+      return TransactionState.Failed;
     }
 
     try {
@@ -183,20 +211,13 @@ export class Trading {
         token.decimals
       );
 
-      const allowance = await tokenContract.allowance(this.getWalletAddress(), this._swapRouterAddress);
+      const allowance = await tokenContract.allowance(address, this._swapRouterAddress);
       if (allowance > requiredAllowance) {
-        console.debug('Allowance is enough, no need for approval, continue.');
+        console.debug('allowance is enough, continue.');
         return TransactionState.Sent;
       }
 
-      const fee = await this._wallet.provider!.getFeeData();
-      // console.debug('fee', fee);
-
-      console.debug('approve token...');
       const transaction = await tokenContract.approve.populateTransaction(this._swapRouterAddress, requiredAllowance);
-      transaction.gasPrice = fee.gasPrice!;// [fixme] polygon issue
-      // transaction.maxFeePerGas = fee.maxFeePerGas!;
-      // transaction.maxPriorityFeePerGas = fee.maxPriorityFeePerGas!;
 
       return sendTransaction(this._wallet, {
         ...transaction,
@@ -219,11 +240,12 @@ export class Trading {
     }
 
     const poolInfo = await this.getPoolInfo(tokenIn, tokenOut);
+    // console.log(poolInfo);
 
     const pool = new Pool(
       tokenIn,
       tokenOut,
-      FeeAmount.MEDIUM,
+      poolInfo.fee,
       poolInfo.sqrtPriceX96.toString(),
       poolInfo.liquidity.toString(),
       poolInfo.tick
@@ -254,12 +276,19 @@ export class Trading {
       }
     )
 
+    // console.log('calldata: ', calldata);
+    // console.log('quoterAddress: ', this._quoterAddress);
+
     const quoteCallReturnData = await provider.call({
       to: this._quoterAddress,
       data: calldata,
-    })
+    });
 
-    const amountOut = ethers.AbiCoder.defaultAbiCoder().decode(['uint256'], quoteCallReturnData)
+    // console.log('quoteCallReturnData: ', quoteCallReturnData);
+
+    const amountOut = ethers.AbiCoder.defaultAbiCoder().decode(['uint256'], quoteCallReturnData);
+
+    // console.log("swap out amount: ", amountOut);
 
     const uncheckedTrade = Trade.createUncheckedTrade({
       route: swapRoute,
@@ -276,6 +305,8 @@ export class Trading {
       ),
       tradeType: TradeType.EXACT_INPUT,
     })
+
+    console.log(displayTrade(uncheckedTrade));
 
     return {
       pool: poolInfo,
@@ -296,24 +327,11 @@ export class Trading {
       throw new Error('Cannot execute a trade without a connected wallet')
     }
 
-    if (tradeInfo.tokenIn.isToken) { // Give approval to the router to spend the erc20 token
-      const tokenApproval = await this.getTokenTransferApproval(tradeInfo.tokenIn, tradeInfo.amount * 10); // [fixme] x10 approve amount
-
-      // Fail if transfer approvals do not go through
-      if (tokenApproval !== TransactionState.Sent) {
-        return TransactionState.Failed
-      }
-    }
-
     const options: SwapOptions = {
       slippageTolerance: new Percent(50, 10_000), // 50 bips, or 0.50%
       deadline: Math.floor(Date.now() / 1000) + 60 * 20, // 20 minutes from the current Unix time
       recipient: walletAddress,
     }
-
-    const fee = await this._wallet.provider!.getFeeData();
-    // console.debug('fee', fee);
-    // console.debug('options', options);
 
     const methodParameters = SwapRouter.swapCallParameters([tradeInfo.trade], options)
 
@@ -321,10 +339,7 @@ export class Trading {
       data: methodParameters.calldata,
       to: this._swapRouterAddress,
       value: methodParameters.value,
-      from: walletAddress,
-      gasPrice: fee.gasPrice, // [fixme] polygon issue
-      // maxFeePerGas: fee.maxFeePerGas,
-      // maxPriorityFeePerGas: fee.maxPriorityFeePerGas
+      from: walletAddress
     }
 
     const res = await sendTransaction(this._wallet, tx, true);
