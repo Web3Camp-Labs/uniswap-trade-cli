@@ -68,7 +68,6 @@ async function runOnce(chainId: number, rpcUrl: string, privKey: string, tokenIn
     const tokenInDecimals = await getCurrencyDecimals(T.getProvider()!, new Token(conf.chainId, tokenInAddress, 18));
     const tokenOutDecimals = await getCurrencyDecimals(T.getProvider()!, new Token(conf.chainId, tokenOutAddress, 18));
 
-    console.log(typeof (tokenInDecimals))
     var tokenIn = new Token(conf.chainId, tokenInAddress, tokenInDecimals);
     var tokenOut = new Token(conf.chainId, tokenOutAddress, tokenOutDecimals);
 

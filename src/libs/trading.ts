@@ -190,9 +190,9 @@ export class Trading {
       }
 
       const fee = await this._wallet.provider!.getFeeData();
-      console.debug('fee', fee);
+      // console.debug('fee', fee);
 
-      console.debug('Approve token.');
+      console.debug('approve token...');
       const transaction = await tokenContract.approve.populateTransaction(this._swapRouterAddress, requiredAllowance);
       transaction.gasPrice = fee.gasPrice!;// [fixme] polygon issue
       // transaction.maxFeePerGas = fee.maxFeePerGas!;
