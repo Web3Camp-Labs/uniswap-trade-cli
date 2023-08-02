@@ -63,8 +63,13 @@ async function runOnce(chainId: number, rpcUrl: string, privKey: string, tokenIn
 
     /// TODO: check balance and handle error
     const tokenInBalance = await getCurrencyBalance(T.getProvider()!, T.getWalletAddress()!, tokenIn);
+    // console.log(`tokenInBalance: `, tokenInBalance);
     if (parseFloat(tokenInBalance) < amountToSwap) {
         return TransactionState.Rejected;
+    }
+
+    if(amountToSwap <= 0) {
+        amountToSwap = parseFloat(tokenInBalance);
     }
 
     /// handle approval
@@ -84,11 +89,11 @@ async function runOnce(chainId: number, rpcUrl: string, privKey: string, tokenIn
         tokenOut,
         amountToSwap
     );
-    // console.debug(`trade info:`, tradeInfo);
+    // console.debug(`wallet address: `, T.getWalletAddress(),`trade info: `, tradeInfo);
 
     /// execute trade
-    const result = await T.executeTrade(tradeInfo);
-    return result;
+    // const result = await T.executeTrade(tradeInfo);
+    // return result;
 
     return TransactionState.Sending; // test code
 }

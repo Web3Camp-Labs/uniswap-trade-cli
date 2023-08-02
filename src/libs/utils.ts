@@ -20,7 +20,8 @@ export function fromReadableAmount(
 }
 
 export function toReadableAmount(rawAmount: number, decimals: number): string {
-  return ethers.formatUnits(rawAmount, decimals).slice(0, MAX_DECIMALS)
+  // return ethers.formatUnits(rawAmount, decimals).slice(0, MAX_DECIMALS)
+  return ethers.formatUnits(rawAmount, decimals);
 }
 
 export function displayTrade(trade: Trade<Token, Token, TradeType>): string {
