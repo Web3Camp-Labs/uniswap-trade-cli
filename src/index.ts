@@ -92,10 +92,10 @@ async function runOnce(chainId: number, rpcUrl: string, privKey: string, tokenIn
     // console.debug(`wallet address: `, T.getWalletAddress(),`trade info: `, tradeInfo);
 
     /// execute trade
-    // const result = await T.executeTrade(tradeInfo);
-    // return result;
+    const result = await T.executeTrade(tradeInfo);
+    return result;
 
-    return TransactionState.Sending; // test code
+    // return TransactionState.Sending; // test code
 }
 
 async function main() {
